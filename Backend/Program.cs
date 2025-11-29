@@ -15,7 +15,7 @@ builder.Services.AddSwaggerGen();
 
 // Configure Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -86,18 +86,30 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Create roles if they don't exist
+// Initialize database and create roles
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var roles = new[] { "Admin", "ProjectManager", "User" };
-    
-    foreach (var role in roles)
+    var services = scope.ServiceProvider;
+    try
     {
-        if (!await roleManager.RoleExistsAsync(role))
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        context.Database.EnsureCreated(); // Create database if it doesn't exist
+        
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var roles = new[] { "Admin", "ProjectManager", "User" };
+        
+        foreach (var role in roles)
         {
-            await roleManager.CreateAsync(new IdentityRole(role));
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
         }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while initializing the database.");
     }
 }
 
