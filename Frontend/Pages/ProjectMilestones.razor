@@ -1,0 +1,404 @@
+@page "/projects/{projectId:int}/milestones"
+@using Frontend.Services
+@using Shared.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize]
+@inject IProjectService ProjectService
+@inject IMilestoneService MilestoneService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Milestones</PageTitle>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (project == null)
+{
+    <div class="alert alert-danger">Project not found</div>
+}
+else
+{
+    <div class="mb-3">
+        <a href="/projects/@ProjectId" class="btn btn-secondary">Back to Project</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Milestones for @project.Name</h3>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show">
+                    @successMessage
+                    <button type="button" class="btn-close" @onclick="() => successMessage = string.Empty"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show">
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                </div>
+            }
+
+            <!-- Create Milestone Form -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Create New Milestone</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@createMilestoneRequest" OnValidSubmit="HandleCreateMilestone">
+                        <DataAnnotationsValidator />
+                        <div class="row">
+                            <div class="col-md-5">
+                                <InputText class="form-control" placeholder="Milestone Name" @bind-Value="createMilestoneRequest.Name" />
+                                <ValidationMessage For="@(() => createMilestoneRequest.Name)" />
+                            </div>
+                            <div class="col-md-5">
+                                <InputText class="form-control" placeholder="Description (optional)" @bind-Value="createMilestoneRequest.Description" />
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm"></span>
+                                    }
+                                    else
+                                    {
+                                        <span>Add</span>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+
+            <!-- Milestones List -->
+            @if (milestones.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Status</th>
+                                <th>Achieved</th>
+                                <th>Approved</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (milestone, index) in milestones.Select((m, i) => (m, i)))
+                            {
+                                <tr>
+                                    <td>@(index + 1)</td>
+                                    <td>@milestone.Name</td>
+                                    <td>@milestone.Description</td>
+                                    <td>
+                                        @if (milestone.IsApproved)
+                                        {
+                                            <span class="badge bg-success">Approved</span>
+                                        }
+                                        else if (milestone.IsAchieved)
+                                        {
+                                            <span class="badge bg-info">Achieved</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Pending</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (milestone.IsAchieved)
+                                        {
+                                            <span class="text-success">✓ @milestone.AchievedDate?.ToString("MMM dd, yyyy")</span>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                    @onclick="() => MarkAsAchieved(milestone)">
+                                                Mark Achieved
+                                            </button>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (milestone.IsApproved)
+                                        {
+                                            <div>
+                                                <span class="text-success">✓ @milestone.ApprovedDate?.ToString("MMM dd, yyyy")</span>
+                                                @if (!string.IsNullOrEmpty(milestone.ApprovedByUserName))
+                                                {
+                                                    <br /><small class="text-muted">by @milestone.ApprovedByUserName</small>
+                                                }
+                                                @if (!string.IsNullOrEmpty(milestone.ApprovalComments))
+                                                {
+                                                    <br /><small class="text-muted">@milestone.ApprovalComments</small>
+                                                }
+                                            </div>
+                                        }
+                                        else if (milestone.IsAchieved)
+                                        {
+                                            <AuthorizeView Roles="Admin,ProjectManager">
+                                                <button class="btn btn-sm btn-outline-primary" 
+                                                        @onclick="() => ShowApprovalModal(milestone)">
+                                                    Approve
+                                                </button>
+                                            </AuthorizeView>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <AuthorizeView Roles="Admin,ProjectManager">
+                                            <button class="btn btn-sm btn-danger" 
+                                                    @onclick="() => DeleteMilestone(milestone.Id)">
+                                                Delete
+                                            </button>
+                                        </AuthorizeView>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    No milestones created yet. Use the form above to create your first milestone.
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Approval Modal -->
+    @if (showApprovalModal && selectedMilestone != null)
+    {
+        <div class="modal show d-block" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Approve Milestone</h5>
+                        <button type="button" class="btn-close" @onclick="CloseApprovalModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p><strong>Milestone:</strong> @selectedMilestone.Name</p>
+                        <EditForm Model="@approvalRequest" OnValidSubmit="HandleApproveMilestone">
+                            <div class="mb-3">
+                                <label class="form-label">Decision</label>
+                                <InputSelect class="form-select" @bind-Value="approvalRequest.IsApproved">
+                                    <option value="true">Approve</option>
+                                    <option value="false">Reject</option>
+                                </InputSelect>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Comments (Optional)</label>
+                                <InputTextArea class="form-control" rows="3" @bind-Value="approvalRequest.ApprovalComments" />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    Submit
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="CloseApprovalModal">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop show"></div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int ProjectId { get; set; }
+
+    private ProjectDto? project;
+    private List<MilestoneDto> milestones = new();
+    private CreateMilestoneRequest createMilestoneRequest = new();
+    private ApproveMilestoneRequest approvalRequest = new() { IsApproved = true };
+    private MilestoneDto? selectedMilestone;
+    private bool showApprovalModal = false;
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        project = await ProjectService.GetProject(ProjectId);
+        if (project != null)
+        {
+            await LoadMilestones();
+        }
+        isLoading = false;
+    }
+
+    private async Task LoadMilestones()
+    {
+        var result = await MilestoneService.GetMilestonesByProject(ProjectId);
+        milestones = result.ToList();
+    }
+
+    private async Task HandleCreateMilestone()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            createMilestoneRequest.ProjectId = ProjectId;
+            var result = await MilestoneService.CreateMilestone(createMilestoneRequest);
+
+            if (result != null)
+            {
+                successMessage = "Milestone created successfully!";
+                createMilestoneRequest = new();
+                await LoadMilestones();
+            }
+            else
+            {
+                errorMessage = "Failed to create milestone.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task MarkAsAchieved(MilestoneDto milestone)
+    {
+        try
+        {
+            var updateRequest = new UpdateMilestoneRequest
+            {
+                Name = milestone.Name,
+                Description = milestone.Description,
+                IsAchieved = true
+            };
+
+            var success = await MilestoneService.UpdateMilestone(milestone.Id, updateRequest);
+
+            if (success)
+            {
+                successMessage = "Milestone marked as achieved!";
+                await LoadMilestones();
+            }
+            else
+            {
+                errorMessage = "Failed to update milestone.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ShowApprovalModal(MilestoneDto milestone)
+    {
+        selectedMilestone = milestone;
+        approvalRequest = new() { IsApproved = true };
+        showApprovalModal = true;
+    }
+
+    private void CloseApprovalModal()
+    {
+        showApprovalModal = false;
+        selectedMilestone = null;
+    }
+
+    private async Task HandleApproveMilestone()
+    {
+        if (selectedMilestone == null) return;
+
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var success = await MilestoneService.ApproveMilestone(selectedMilestone.Id, approvalRequest);
+
+            if (success)
+            {
+                successMessage = approvalRequest.IsApproved ? "Milestone approved!" : "Milestone rejected!";
+                await LoadMilestones();
+                CloseApprovalModal();
+            }
+            else
+            {
+                errorMessage = "Failed to process approval.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task DeleteMilestone(int milestoneId)
+    {
+        if (!await JSConfirm("Are you sure you want to delete this milestone?"))
+            return;
+
+        try
+        {
+            var success = await MilestoneService.DeleteMilestone(milestoneId);
+
+            if (success)
+            {
+                successMessage = "Milestone deleted successfully!";
+                await LoadMilestones();
+            }
+            else
+            {
+                errorMessage = "Failed to delete milestone.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task<bool> JSConfirm(string message)
+    {
+        // Simplified confirmation - in a real app, use JSInterop
+        return await Task.FromResult(true);
+    }
+}

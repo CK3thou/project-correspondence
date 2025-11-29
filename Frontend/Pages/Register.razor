@@ -1,0 +1,113 @@
+@page "/register"
+@using Frontend.Services
+@using Shared.DTOs
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Register</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3>Register</h3>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+
+                <EditForm Model="@registerRequest" OnValidSubmit="HandleRegister">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-3">
+                        <label for="fullname" class="form-label">Full Name</label>
+                        <InputText id="fullname" class="form-control" @bind-Value="registerRequest.FullName" />
+                        <ValidationMessage For="@(() => registerRequest.FullName)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <InputText id="email" class="form-control" @bind-Value="registerRequest.Email" />
+                        <ValidationMessage For="@(() => registerRequest.Email)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <InputText type="password" id="password" class="form-control" @bind-Value="registerRequest.Password" />
+                        <ValidationMessage For="@(() => registerRequest.Password)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <InputText type="password" id="confirmPassword" class="form-control" @bind-Value="registerRequest.ConfirmPassword" />
+                        <ValidationMessage For="@(() => registerRequest.ConfirmPassword)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Role</label>
+                        <InputSelect id="role" class="form-select" @bind-Value="registerRequest.Role">
+                            <option value="User">User</option>
+                            <option value="ProjectManager">Project Manager</option>
+                            <option value="Admin">Admin</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => registerRequest.Role)" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Register
+                    </button>
+                </EditForm>
+
+                <div class="mt-3">
+                    <p>Already have an account? <a href="/login">Login here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterRequest registerRequest = new() { Role = "User" };
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var result = await AuthService.Register(registerRequest);
+
+            if (result.Success)
+            {
+                if (AuthStateProvider is CustomAuthStateProvider customProvider)
+                {
+                    customProvider.NotifyUserAuthentication(result.Token!);
+                }
+                Navigation.NavigateTo("/projects");
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

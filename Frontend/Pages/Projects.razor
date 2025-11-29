@@ -1,0 +1,90 @@
+@page "/projects"
+@using Frontend.Services
+@using Shared.DTOs
+@attribute [Authorize]
+@inject IProjectService ProjectService
+@inject NavigationManager Navigation
+
+<PageTitle>Projects</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Projects</h1>
+    <a href="/projects/create" class="btn btn-primary">Create New Project</a>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (projects.Any())
+{
+    <div class="row">
+        @foreach (var project in projects)
+        {
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@project.Name</h5>
+                        <p class="card-text">@project.Description</p>
+                        <div class="mb-2">
+                            <span class="badge bg-@GetStatusColor(project.Status)">@project.Status</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Approver: @project.ApproverName</small>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Milestones: @project.Milestones.Count / @project.NumberOfMilestones</small>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Created by: @project.CreatedByUserName</small>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href="/projects/@project.Id" class="btn btn-sm btn-primary">View Details</a>
+                        <a href="/projects/@project.Id/milestones" class="btn btn-sm btn-info">Milestones</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        No projects found. <a href="/projects/create">Create your first project</a>
+    </div>
+}
+
+@code {
+    private List<ProjectDto> projects = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task LoadProjects()
+    {
+        isLoading = true;
+        var result = await ProjectService.GetProjects();
+        projects = result.ToList();
+        isLoading = false;
+    }
+
+    private string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "InProgress" => "info",
+            "Completed" => "success",
+            "Rejected" => "danger",
+            _ => "secondary"
+        };
+    }
+}

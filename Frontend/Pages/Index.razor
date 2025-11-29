@@ -1,0 +1,24 @@
+@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to Project Correspondence</h1>
+    <p class="lead">Manage your projects and milestones efficiently</p>
+    
+    <AuthorizeView>
+        <Authorized>
+            <div class="mt-4">
+                <a href="/projects" class="btn btn-primary btn-lg">View Projects</a>
+                <a href="/projects/create" class="btn btn-success btn-lg ms-2">Create New Project</a>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <div class="mt-4">
+                <p>Please login to access the application</p>
+                <a href="/login" class="btn btn-primary btn-lg">Login</a>
+                <a href="/register" class="btn btn-secondary btn-lg ms-2">Register</a>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
