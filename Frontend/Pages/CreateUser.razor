@@ -1,0 +1,129 @@
+@page "/users/create"
+@using Frontend.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IUserService UserService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+
+<PageTitle>Create User</PageTitle>
+
+<RadzenStack Gap="2rem" Style="padding: 2rem;">
+    <RadzenRow JustifyContent="JustifyContent.Center">
+        <RadzenColumn Size="12" SizeMD="10" SizeLG="8">
+            <RadzenCard>
+                <RadzenStack Gap="1.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                        <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                      Click="@(() => Navigation.NavigateTo("/users"))" />
+                        <RadzenText TextStyle="TextStyle.H4">Create New User</RadzenText>
+                    </RadzenStack>
+                    
+                    <EditForm Model="@createRequest" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <RadzenStack Gap="1rem">
+                            <RadzenFormField Text="Full Name" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="createRequest.FullName" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.FullName)" />
+                                </Helper>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Email" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="createRequest.Email" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.Email)" />
+                                </Helper>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Password" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenPassword @bind-Value="createRequest.Password" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.Password)" />
+                                </Helper>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Roles" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenCheckBoxList @bind-Value="@createRequest.Roles" Data="@availableRoles" 
+                                                        Orientation="Orientation.Vertical" />
+                                </ChildContent>
+                            </RadzenFormField>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="margin-top: 1rem;">
+                                <RadzenButton ButtonType="ButtonType.Submit" Text="Create User" Icon="person_add" 
+                                              ButtonStyle="ButtonStyle.Primary" Disabled="@isLoading" />
+                                <RadzenButton Text="Cancel" Icon="cancel" ButtonStyle="ButtonStyle.Light" 
+                                              Click="@(() => Navigation.NavigateTo("/users"))" />
+                            </RadzenStack>
+                        </RadzenStack>
+                    </EditForm>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private CreateUserRequest createRequest = new();
+    private bool isLoading = false;
+    private IEnumerable<string> availableRoles = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        availableRoles = await UserService.GetRoles();
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+
+        try
+        {
+            var result = await UserService.CreateUser(createRequest);
+
+            if (result.Success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "User created successfully!",
+                    Duration = 4000
+                });
+                await Task.Delay(1000);
+                Navigation.NavigateTo("/users");
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = result.Message,
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"An error occurred: {ex.Message}",
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

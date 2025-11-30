@@ -3,87 +3,83 @@
 @attribute [Authorize]
 @inject IProjectService ProjectService
 @inject NavigationManager Navigation
+@inject NotificationService NotificationService
 
 <PageTitle>Create Project</PageTitle>
 
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h3>Create New Project</h3>
-            </div>
-            <div class="card-body">
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-danger">@errorMessage</div>
-                }
+<RadzenStack Gap="2rem" Style="padding: 2rem;">
+    <RadzenRow JustifyContent="JustifyContent.Center">
+        <RadzenColumn Size="12" SizeMD="10" SizeLG="8">
+            <RadzenCard>
+                <RadzenStack Gap="1.5rem">
+                    <RadzenText TextStyle="TextStyle.H4">Create New Project</RadzenText>
+                    
+                    <EditForm Model="@createRequest" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <RadzenStack Gap="1rem">
+                            <RadzenFormField Text="Project Name" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="createRequest.Name" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.Name)" />
+                                </Helper>
+                            </RadzenFormField>
 
-                @if (!string.IsNullOrEmpty(successMessage))
-                {
-                    <div class="alert alert-success">@successMessage</div>
-                }
+                            <RadzenFormField Text="Project Link (Optional)" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="createRequest.ProjectLink" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.ProjectLink)" />
+                                </Helper>
+                            </RadzenFormField>
 
-                <EditForm Model="@createRequest" OnValidSubmit="HandleSubmit">
-                    <DataAnnotationsValidator />
-                    <ValidationSummary />
+                            <RadzenFormField Text="Description (Optional)" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextArea @bind-Value="createRequest.Description" Rows="4" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.Description)" />
+                                </Helper>
+                            </RadzenFormField>
 
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Project Name</label>
-                        <InputText id="name" class="form-control" @bind-Value="createRequest.Name" />
-                        <ValidationMessage For="@(() => createRequest.Name)" />
-                    </div>
+                            <RadzenFormField Text="Approver Name" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="createRequest.ApproverName" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.ApproverName)" />
+                                </Helper>
+                            </RadzenFormField>
 
-                    <div class="mb-3">
-                        <label for="projectLink" class="form-label">Project Link (Optional)</label>
-                        <InputText id="projectLink" class="form-control" @bind-Value="createRequest.ProjectLink" />
-                        <ValidationMessage For="@(() => createRequest.ProjectLink)" />
-                    </div>
+                            <RadzenFormField Text="Number of Milestones" Variant="Variant.Outlined">
+                                <ChildContent>
+                                    <RadzenNumeric @bind-Value="createRequest.NumberOfMilestones" Min="1" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <ValidationMessage For="@(() => createRequest.NumberOfMilestones)" />
+                                </Helper>
+                            </RadzenFormField>
 
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description (Optional)</label>
-                        <InputTextArea id="description" class="form-control" rows="4" @bind-Value="createRequest.Description" />
-                        <ValidationMessage For="@(() => createRequest.Description)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="approverName" class="form-label">Approver Name</label>
-                        <InputText id="approverName" class="form-control" @bind-Value="createRequest.ApproverName" />
-                        <ValidationMessage For="@(() => createRequest.ApproverName)" />
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="numberOfMilestones" class="form-label">Number of Milestones</label>
-                        <InputNumber id="numberOfMilestones" class="form-control" @bind-Value="createRequest.NumberOfMilestones" />
-                        <ValidationMessage For="@(() => createRequest.NumberOfMilestones)" />
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                            }
-                            Create Project
-                        </button>
-                        <a href="/projects" class="btn btn-secondary">Cancel</a>
-                    </div>
-                </EditForm>
-            </div>
-        </div>
-    </div>
-</div>
-
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="margin-top: 1rem;">
+                                <RadzenButton ButtonType="ButtonType.Submit" Text="Create Project" Icon="add_circle" 
+                                              ButtonStyle="ButtonStyle.Primary" Disabled="@isLoading" />
+                                <RadzenButton Text="Cancel" Icon="cancel" ButtonStyle="ButtonStyle.Light" 
+                                              Click="@(() => Navigation.NavigateTo("/projects"))" />
+                            </RadzenStack>
+                        </RadzenStack>
+                    </EditForm>
+                </RadzenStack>
+            </RadzenCard>
 @code {
     private CreateProjectRequest createRequest = new() { NumberOfMilestones = 1 };
-    private string errorMessage = string.Empty;
-    private string successMessage = string.Empty;
     private bool isLoading = false;
 
     private async Task HandleSubmit()
     {
         isLoading = true;
-        errorMessage = string.Empty;
-        successMessage = string.Empty;
 
         try
         {
@@ -91,21 +87,54 @@
 
             if (result != null)
             {
-                successMessage = "Project created successfully!";
-                await Task.Delay(1500);
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "Project created successfully!",
+                    Duration = 4000
+                });
+                await Task.Delay(1000);
                 Navigation.NavigateTo($"/projects/{result.Id}");
             }
             else
             {
-                errorMessage = "Failed to create project. Please try again.";
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to create project. Please check the browser console for details.",
+                    Duration = 4000
+                });
             }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Network Error",
+                Detail = $"{httpEx.Message}. Make sure the backend API is running.",
+                Duration = 4000
+            });
         }
         catch (Exception ex)
         {
-            errorMessage = $"An error occurred: {ex.Message}";
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"An error occurred: {ex.Message}",
+                Duration = 4000
+            });
+            Console.WriteLine($"Full error: {ex}");
         }
         finally
         {
+            isLoading = false;
+        }
+    }
+}       {
             isLoading = false;
         }
     }

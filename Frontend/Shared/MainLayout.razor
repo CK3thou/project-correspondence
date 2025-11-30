@@ -1,26 +1,33 @@
 @inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
+<RadzenLayout>
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem" Style="padding: 0 1rem; height: 64px;">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin: 0; color: white;">Project Correspondence</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="margin-left: auto;">
+                <AuthorizeView>
+                    <Authorized>
+                        <RadzenText Style="color: white;">Welcome, @context.User.Identity?.Name</RadzenText>
+                        <RadzenButton Text="Logout" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => Navigation.NavigateTo("/logout"))" />
+                    </Authorized>
+                    <NotAuthorized>
+                        <RadzenButton Text="Login" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text" Click="@(() => Navigation.NavigateTo("/login"))" />
+                        <RadzenButton Text="Register" ButtonStyle="ButtonStyle.Secondary" Click="@(() => Navigation.NavigateTo("/register"))" />
+                    </NotAuthorized>
+                </AuthorizeView>
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenHeader>
+    <RadzenSidebar>
         <NavMenu />
-    </div>
-
-    <main>
-        <div class="top-row px-4">
-            <AuthorizeView>
-                <Authorized>
-                    <span>Welcome, @context.User.Identity?.Name</span>
-                    <a href="/logout">Logout</a>
-                </Authorized>
-                <NotAuthorized>
-                    <a href="/login">Login</a>
-                    <a href="/register">Register</a>
-                </NotAuthorized>
-            </AuthorizeView>
-        </div>
-
-        <article class="content px-4">
+    </RadzenSidebar>
+    <RadzenBody>
+        <RadzenContentContainer>
             @Body
-        </article>
-    </main>
-</div>
+        </RadzenContentContainer>
+    </RadzenBody>
+</RadzenLayout>
+
+@code {
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+}

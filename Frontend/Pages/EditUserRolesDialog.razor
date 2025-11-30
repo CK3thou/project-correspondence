@@ -1,0 +1,102 @@
+@using Frontend.Services
+@inject IUserService UserService
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<RadzenStack Gap="1.5rem">
+    <RadzenText TextStyle="TextStyle.Body1">
+        Select roles for <strong>@UserName</strong>
+    </RadzenText>
+
+    <RadzenStack Gap="0.5rem">
+        @foreach (var role in availableRoles)
+        {
+            <RadzenCheckBox @bind-Value="@selectedRoles[role]" Name="@role" />
+            <RadzenLabel Text="@role" Component="@role" Style="margin-left: 0.5rem; margin-bottom: 0.5rem;" />
+        }
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@Cancel" />
+        <RadzenButton Text="Save" Icon="save" ButtonStyle="ButtonStyle.Primary" Click="@Save" Disabled="@isLoading" />
+    </RadzenStack>
+</RadzenStack>
+
+@code {
+    [Parameter] public string UserId { get; set; } = string.Empty;
+    [Parameter] public string UserName { get; set; } = string.Empty;
+    [Parameter] public List<string> CurrentRoles { get; set; } = new();
+
+    private List<string> availableRoles = new();
+    private Dictionary<string, bool> selectedRoles = new();
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var roles = await UserService.GetRoles();
+        availableRoles = roles.ToList();
+
+        // Initialize checkbox states
+        foreach (var role in availableRoles)
+        {
+            selectedRoles[role] = CurrentRoles.Contains(role);
+        }
+    }
+
+    private async Task Save()
+    {
+        isLoading = true;
+
+        try
+        {
+            var selectedRolesList = selectedRoles
+                .Where(kvp => kvp.Value)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            var request = new UpdateUserRolesRequest { Roles = selectedRolesList };
+            var result = await UserService.UpdateUserRoles(UserId, request);
+
+            if (result.Success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = "User roles updated successfully",
+                    Duration = 4000
+                });
+                DialogService.Close(true);
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = result.Message,
+                    Duration = 4000
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = $"An error occurred: {ex.Message}",
+                Duration = 4000
+            });
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        DialogService.Close(false);
+    }
+}

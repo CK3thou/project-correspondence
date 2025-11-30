@@ -1,10 +1,21 @@
+<RadzenComponents />
+<RadzenDialog />
+<RadzenNotification />
+<RadzenContextMenu />
+<RadzenTooltip />
+
 <Router AppAssembly="@typeof(App).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
             <NotAuthorized>
-                <h3>Not Authorized</h3>
-                <p>You must be logged in to access this page.</p>
-                <a href="/login">Go to Login</a>
+                <RadzenCard Style="margin: 2rem;">
+                    <RadzenStack Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.H4">Not Authorized</RadzenText>
+                        <RadzenText>You must be logged in to access this page.</RadzenText>
+                        <RadzenButton Text="Go to Login" Icon="login" ButtonStyle="ButtonStyle.Primary" 
+                                      Click="@(() => NavigationManager.NavigateTo("/login"))" />
+                    </RadzenStack>
+                </RadzenCard>
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
@@ -12,7 +23,18 @@
     <NotFound>
         <PageTitle>Not found</PageTitle>
         <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
+            <RadzenCard Style="margin: 2rem;">
+                <RadzenStack Gap="1rem">
+                    <RadzenText TextStyle="TextStyle.H4">Page Not Found</RadzenText>
+                    <RadzenText>Sorry, there's nothing at this address.</RadzenText>
+                    <RadzenButton Text="Go Home" Icon="home" ButtonStyle="ButtonStyle.Primary" 
+                                  Click="@(() => NavigationManager.NavigateTo("/"))" />
+                </RadzenStack>
+            </RadzenCard>
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    [Inject] NavigationManager NavigationManager { get; set; } = default!;
+}

@@ -1,0 +1,149 @@
+@page "/users"
+@using Frontend.Services
+@attribute [Authorize(Roles = "Admin")]
+@inject IUserService UserService
+@inject NavigationManager Navigation
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<PageTitle>User Management</PageTitle>
+
+<RadzenStack Gap="2rem" Style="padding: 2rem;">
+    <RadzenRow JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenText TextStyle="TextStyle.H3">User Management</RadzenText>
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6" Style="text-align: right;">
+            <RadzenButton Text="Create New User" Icon="person_add" ButtonStyle="ButtonStyle.Primary" 
+                          Click="@(() => Navigation.NavigateTo("/users/create"))" />
+        </RadzenColumn>
+    </RadzenRow>
+
+    @if (isLoading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Gap="1rem">
+            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Large" />
+            <RadzenText>Loading users...</RadzenText>
+        </RadzenStack>
+    }
+    else
+    {
+        <RadzenCard>
+            <RadzenDataGrid @ref="grid" Data="@users" TItem="UserDto" AllowFiltering="true" AllowSorting="true" 
+                            AllowColumnResize="true" FilterMode="FilterMode.Simple" PageSize="10" AllowPaging="true">
+                <Columns>
+                    <RadzenDataGridColumn TItem="UserDto" Property="FullName" Title="Full Name" Width="200px">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                <RadzenIcon Icon="account_circle" />
+                                <RadzenText>@user.FullName</RadzenText>
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    
+                    <RadzenDataGridColumn TItem="UserDto" Property="Email" Title="Email" Width="250px" />
+                    
+                    <RadzenDataGridColumn TItem="UserDto" Property="Roles" Title="Roles" Width="250px" Filterable="false" Sortable="false">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" Wrap="FlexWrap.Wrap">
+                                @foreach (var role in user.Roles)
+                                {
+                                    <RadzenBadge Text="@role" BadgeStyle="BadgeStyle.Info" />
+                                }
+                                @if (!user.Roles.Any())
+                                {
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">No roles</RadzenText>
+                                }
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                    
+                    <RadzenDataGridColumn TItem="UserDto" Property="CreatedAt" Title="Created" Width="150px" FormatString="{0:MMM dd, yyyy}" />
+                    
+                    <RadzenDataGridColumn TItem="UserDto" Title="Actions" Width="200px" Filterable="false" Sortable="false">
+                        <Template Context="user">
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                                <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" 
+                                              Click="@(() => OpenEditRolesDialog(user))" 
+                                              title="Edit Roles" />
+                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small" 
+                                              Click="@(() => DeleteUserConfirm(user))" 
+                                              title="Delete User" />
+                            </RadzenStack>
+                        </Template>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenCard>
+    }
+</RadzenStack>
+
+@code {
+    private List<UserDto> users = new();
+    private bool isLoading = true;
+    private RadzenDataGrid<UserDto>? grid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoading = true;
+        var result = await UserService.GetUsers();
+        users = result.ToList();
+        isLoading = false;
+    }
+
+    private async Task OpenEditRolesDialog(UserDto user)
+    {
+        var parameters = new Dictionary<string, object>
+        {
+            { "UserId", user.Id },
+            { "UserName", user.FullName },
+            { "CurrentRoles", user.Roles }
+        };
+
+        var result = await DialogService.OpenAsync<EditUserRolesDialog>("Edit User Roles", parameters,
+            new DialogOptions { Width = "500px", Height = "auto" });
+
+        if (result == true)
+        {
+            await LoadUsers();
+        }
+    }
+
+    private async Task DeleteUserConfirm(UserDto user)
+    {
+        var confirmed = await DialogService.Confirm($"Are you sure you want to delete user '{user.FullName}'?", "Delete User",
+            new ConfirmOptions { OkButtonText = "Delete", CancelButtonText = "Cancel" });
+
+        if (confirmed == true)
+        {
+            var success = await UserService.DeleteUser(user.Id);
+            
+            if (success)
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Success,
+                    Summary = "Success",
+                    Detail = $"User '{user.FullName}' deleted successfully",
+                    Duration = 4000
+                });
+                await LoadUsers();
+            }
+            else
+            {
+                NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Error",
+                    Detail = "Failed to delete user",
+                    Duration = 4000
+                });
+            }
+        }
+    }
+}

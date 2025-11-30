@@ -62,11 +62,16 @@ public class ProjectService : IProjectService
             {
                 return await response.Content.ReadFromJsonAsync<ProjectDto>();
             }
+            
+            // Log the error response
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Error creating project: {response.StatusCode} - {errorContent}");
             return null;
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            Console.WriteLine($"Exception creating project: {ex.Message}");
+            throw;
         }
     }
 
