@@ -1,24 +1,130 @@
 @page "/"
+@inject IProjectService ProjectService
+@inject NotificationService NotificationService
 
 <PageTitle>Home</PageTitle>
 
-<div class="text-center">
-    <h1 class="display-4">Welcome to Project Correspondence</h1>
-    <p class="lead">Manage your projects and milestones efficiently</p>
+<RadzenStack Gap="1rem">
+    <RadzenText TextStyle="TextStyle.H3" TagName="TagName.H1" class="rz-text-align-center">
+        Welcome to Project Correspondence
+    </RadzenText>
+    <RadzenText TextStyle="TextStyle.Subtitle1" class="rz-text-align-center">
+        Manage your projects and milestones efficiently
+    </RadzenText>
     
     <AuthorizeView>
         <Authorized>
-            <div class="mt-4">
-                <a href="/projects" class="btn btn-primary btn-lg">View Projects</a>
-                <a href="/projects/create" class="btn btn-success btn-lg ms-2">Create New Project</a>
-            </div>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center" class="rz-mt-4">
+                <RadzenButton Text="View Projects" Icon="list" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/projects"))" />
+                <RadzenButton Text="Create New Project" Icon="add_circle" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/projects/create"))" />
+            </RadzenStack>
+
+            @if (activeProjects != null && activeProjects.Any())
+            {
+                <RadzenCard class="rz-mt-6">
+                    <RadzenStack Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.H5">Active Projects</RadzenText>
+                        
+                        <RadzenDataList Data="@activeProjects" TItem="ProjectResponse" WrapItems="true" AllowPaging="true" PageSize="6">
+                            <Template Context="project">
+                                <RadzenCard class="rz-m-2" Style="width: 300px;">
+                                    <RadzenStack Gap="0.5rem">
+                                        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Start">
+                                            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0">@project.Name</RadzenText>
+                                            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.ExtraSmall" 
+                                                         Variant="Variant.Text" Click="@(() => RemoveFromDashboard(project.Id))" 
+                                                         title="Remove from dashboard" />
+                                        </RadzenStack>
+                                        
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="@project.Status" />
+                                        
+                                        @if (!string.IsNullOrEmpty(project.Description))
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Body2" class="rz-color-secondary">
+                                                @(project.Description.Length > 100 ? project.Description.Substring(0, 100) + "..." : project.Description)
+                                            </RadzenText>
+                                        }
+                                        
+                                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" class="rz-mt-2">
+                                            <RadzenButton Text="View Details" Size="ButtonSize.Small" 
+                                                         Click="@(() => Navigation.NavigateTo($"/projects/{project.Id}"))" />
+                                            <RadzenButton Text="Milestones" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
+                                                         Click="@(() => Navigation.NavigateTo($"/projects/{project.Id}/milestones"))" />
+                                        </RadzenStack>
+                                    </RadzenStack>
+                                </RadzenCard>
+                            </Template>
+                        </RadzenDataList>
+                    </RadzenStack>
+                </RadzenCard>
+            }
+            else if (activeProjects != null)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" Variant="Variant.Flat" class="rz-mt-4">
+                    <RadzenText>No active projects at the moment.</RadzenText>
+                </RadzenAlert>
+            }
         </Authorized>
         <NotAuthorized>
-            <div class="mt-4">
-                <p>Please login to access the application</p>
-                <a href="/login" class="btn btn-primary btn-lg">Login</a>
-                <a href="/register" class="btn btn-secondary btn-lg ms-2">Register</a>
-            </div>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center" class="rz-mt-4">
+                <RadzenText>Please login to access the application</RadzenText>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" JustifyContent="JustifyContent.Center" class="rz-mt-2">
+                <RadzenButton Text="Login" Icon="login" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/login"))" />
+                <RadzenButton Text="Register" Icon="person_add" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Large" Click="@(() => Navigation.NavigateTo("/register"))" />
+            </RadzenStack>
         </NotAuthorized>
     </AuthorizeView>
-</div>
+</RadzenStack>
+
+@code {
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    private List<ProjectResponse>? activeProjects;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActiveProjects();
+    }
+
+    private async Task LoadActiveProjects()
+    {
+        try
+        {
+            var allProjects = await ProjectService.GetProjectsAsync();
+            activeProjects = allProjects
+                .Where(p => p.Status == "InProgress")
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = "Failed to load active projects",
+                Duration = 4000
+            });
+        }
+    }
+
+    private async Task RemoveFromDashboard(int projectId)
+    {
+        var project = activeProjects?.FirstOrDefault(p => p.Id == projectId);
+        if (project != null)
+        {
+            // Remove from the local list immediately for UI responsiveness
+            activeProjects?.Remove(project);
+            
+            NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Success,
+                Summary = "Removed",
+                Detail = $"'{project.Name}' removed from dashboard",
+                Duration = 3000
+            });
+            
+            StateHasChanged();
+        }
+    }
+}
